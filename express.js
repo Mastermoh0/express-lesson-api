@@ -285,3 +285,30 @@ app.put('/api/lessons/:id', checkDB, async (req, res) => {
         res.status(500).json({ error: 'Error updating lesson' });
     }
 });
+
+// Search lessons - searches across subject, location, price, and spaces
+app.get('/api/search', checkDB, async (req, res) => {
+    const query = req.query.q;
+    if (!query) return res.status(400).json({ error: 'Search query is required' });
+
+    try {
+        const numericQuery = isNaN(query) ? null : Number(query);
+        
+        const searchConditions = [
+            { subject: { $regex: query, $options: 'i' } },
+            { location: { $regex: query, $options: 'i' } }
+        ];
+        
+        if (numericQuery !== null) {
+            searchConditions.push({ price: numericQuery });
+            searchConditions.push({ spaces: numericQuery });
+        }
+        
+        const lessons = await db.collection('lessons').find({
+            $or: searchConditions
+        }).toArray();
+        res.json(lessons);
+    } catch (err) {
+        res.status(500).json({ error: 'Error searching lessons' });
+    }
+});
