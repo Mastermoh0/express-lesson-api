@@ -3,7 +3,7 @@ require('dotenv').config();
 
 const express = require('express');
 const cors = require('cors');
-const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
 const path = require('path');
 const fs = require('fs');
 
@@ -43,6 +43,97 @@ app.use('/images', express.static(path.join(__dirname, 'images')));
 const uri = process.env.MONGODB_URI || "YOUR_MONGODB_CONNECTION_STRING_HERE";
 let db;
 
+// Helper function to get Font Awesome icon class for each subject
+function getIconForSubject(subject) {
+    const iconMap = {
+        "Mathematics": "fa-calculator",
+        "English": "fa-book",
+        "Science": "fa-flask",
+        "Art": "fa-palette",
+        "Music": "fa-music",
+        "Physical Education": "fa-running",
+        "Computer Science": "fa-laptop-code",
+        "History": "fa-landmark",
+        "Geography": "fa-globe",
+        "Drama": "fa-theater-masks"
+    };
+    return iconMap[subject] || "fa-graduation-cap";
+}
+
+// Lesson data
+const initialLessons = [
+    {
+        "subject": "Mathematics",
+        "location": "Hendon",
+        "price": 100,
+        "spaces": 5,
+        "icon": "fa-calculator"
+    },
+    {
+        "subject": "English",
+        "location": "Colindale",
+        "price": 90,
+        "spaces": 5,
+        "icon": "fa-book"
+    },
+    {
+        "subject": "Science",
+        "location": "Brent Cross",
+        "price": 110,
+        "spaces": 5,
+        "icon": "fa-flask"
+    },
+    {
+        "subject": "Art",
+        "location": "Golders Green",
+        "price": 85,
+        "spaces": 5,
+        "icon": "fa-palette"
+    },
+    {
+        "subject": "Music",
+        "location": "Hendon",
+        "price": 95,
+        "spaces": 5,
+        "icon": "fa-music"
+    },
+    {
+        "subject": "Physical Education",
+        "location": "Colindale",
+        "price": 80,
+        "spaces": 5,
+        "icon": "fa-running"
+    },
+    {
+        "subject": "Computer Science",
+        "location": "Brent Cross",
+        "price": 120,
+        "spaces": 5,
+        "icon": "fa-laptop-code"
+    },
+    {
+        "subject": "History",
+        "location": "Golders Green",
+        "price": 88,
+        "spaces": 5,
+        "icon": "fa-landmark"
+    },
+    {
+        "subject": "Geography",
+        "location": "Hendon",
+        "price": 92,
+        "spaces": 5,
+        "icon": "fa-globe"
+    },
+    {
+        "subject": "Drama",
+        "location": "Colindale",
+        "price": 87,
+        "spaces": 5,
+        "icon": "fa-theater-masks"
+    }
+];
+
 // Connect to MongoDB
 async function connectToDB() {
     if (uri === "YOUR_MONGODB_CONNECTION_STRING_HERE") {
@@ -55,6 +146,23 @@ async function connectToDB() {
         await client.connect();
         db = client.db('afterschool');
         console.log('✅ Connected to MongoDB');
+
+        // Initialize or update lessons in the database
+        const resetPromises = initialLessons.map(async lesson => {
+            const lessonWithIcon = {
+                ...lesson,
+                icon: lesson.icon || getIconForSubject(lesson.subject)
+            };
+            
+            await db.collection('lessons').updateOne(
+                { subject: lesson.subject, location: lesson.location },
+                { $set: lessonWithIcon },
+                { upsert: true }
+            );
+        });
+
+        await Promise.all(resetPromises);
+        console.log('✅ Lessons initialized/updated in database');
     } catch (err) {
         console.error('❌ Database connection error:', err.message);
         process.exit(1);
