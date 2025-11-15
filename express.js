@@ -195,3 +195,43 @@ app.get('/api/lessons', checkDB, async (req, res) => {
         res.status(500).json({ error: 'Could not fetch lessons' });
     }
 });
+
+// Place an order
+app.post('/api/orders', checkDB, async (req, res) => {
+    const { name, phone, lessons: lessonIds } = req.body;
+
+    if (!name || !phone || !Array.isArray(lessonIds)) {
+        return res.status(400).json({ error: 'Invalid input' });
+    }
+
+    try {
+        const lessons = await db.collection('lessons').find({
+            _id: { $in: lessonIds.map(id => new ObjectId(id)) }
+        }).toArray();
+
+        const isFull = lessons.some(lesson => lesson.spaces <= 0);
+        if (isFull) {
+            return res.status(400).json({ error: 'Some lessons are fully booked' });
+        }
+
+        for (const id of lessonIds) {
+            await db.collection('lessons').updateOne(
+                { _id: new ObjectId(id) },
+                { $inc: { spaces: -1 } }
+            );
+        }
+
+        const order = {
+            name,
+            phone,
+            lessonIds,
+            orderDate: new Date()
+        };
+        await db.collection('orders').insertOne(order);
+
+        res.json({ message: 'Order placed successfully' });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Error placing order' });
+    }
+});
