@@ -183,3 +183,15 @@ connectToDB().then(() => {
 }).catch(err => {
     console.error('Database connection error:', err);
 });
+
+// Routes
+
+// Get all lessons
+app.get('/api/lessons', checkDB, async (req, res) => {
+    try {
+        const lessons = await db.collection('lessons').find({}).toArray();
+        res.json(lessons);
+    } catch (err) {
+        res.status(500).json({ error: 'Could not fetch lessons' });
+    }
+});
