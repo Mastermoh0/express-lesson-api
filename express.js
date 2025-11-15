@@ -235,3 +235,53 @@ app.post('/api/orders', checkDB, async (req, res) => {
         res.status(500).json({ error: 'Error placing order' });
     }
 });
+
+// Update lesson - can update ANY attribute (not just spaces)
+app.put('/api/lessons/:id', checkDB, async (req, res) => {
+    const { id } = req.params;
+    const updateData = req.body;
+
+    if (!ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid lesson ID' });
+    }
+
+    if (!updateData || Object.keys(updateData).length === 0) {
+        return res.status(400).json({ error: 'Update data is required' });
+    }
+
+    try {
+        const updateFields = {};
+        
+        if (updateData.subject !== undefined) {
+            updateFields.subject = updateData.subject;
+            if (updateData.subject) {
+                updateFields.icon = getIconForSubject(updateData.subject);
+            }
+        }
+        if (updateData.location !== undefined) updateFields.location = updateData.location;
+        if (updateData.price !== undefined) updateFields.price = updateData.price;
+        if (updateData.spaces !== undefined) updateFields.spaces = updateData.spaces;
+        if (updateData.icon !== undefined) updateFields.icon = updateData.icon;
+        
+        Object.keys(updateData).forEach(key => {
+            if (!['subject', 'location', 'price', 'spaces', 'icon'].includes(key)) {
+                updateFields[key] = updateData[key];
+            }
+        });
+
+        const result = await db.collection('lessons').updateOne(
+            { _id: new ObjectId(id) },
+            { $set: updateFields }
+        );
+        
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'Lesson not found' });
+        }
+        
+        const updatedLesson = await db.collection('lessons').findOne({ _id: new ObjectId(id) });
+        res.json({ message: 'Lesson updated successfully', lesson: updatedLesson });
+    } catch (err) {
+        console.error('Error updating lesson:', err);
+        res.status(500).json({ error: 'Error updating lesson' });
+    }
+});
